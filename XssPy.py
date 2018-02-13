@@ -4,7 +4,7 @@ import httplib
 import argparse
 import logging
 from urlparse import urlparse
-
+import traceback
 br = mechanize.Browser()  # initiating the browser
 br.addheaders = [
     ('User-agent',
@@ -17,7 +17,15 @@ payloads = ['<svg "ons>', '" onfocus="alert(1);', 'javascript:alert(1)']
 blacklist = ['.png', '.jpg', '.jpeg', '.mp3', '.mp4', '.avi', '.gif', '.svg',
              '.pdf']
 xssLinks = []            # TOTAL CROSS SITE SCRIPTING FINDINGS
-
+import ssl
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    # Legacy Python that doesn't verify HTTPS certificates by default
+    pass
+else:
+    # Handle target environment that doesn't support HTTPS verification
+    ssl._create_default_https_context = _create_unverified_https_context
 
 class color:
     BLUE = '\033[94m'
@@ -108,14 +116,15 @@ def initializeAndFind():
             test.request("GET", "/")
             response = test.getresponse()
             if (response.status == 200) | (response.status == 302):
-                url = "https://www." + str(url)
+                url = "https://" + str(url)
             elif response.status == 301:
                 loc = response.getheader('Location')
                 url = loc.scheme + '://' + loc.netloc
             else:
-                url = "http://www." + str(url)
+                url = "http://" + str(url)
         except:
-            url = "http://www." + str(url)
+            url = "http://" + str(url)
+        print("URL IS ", url)
         try:
             br.open(url)
             for cookie in results.cookies:
@@ -130,6 +139,7 @@ def initializeAndFind():
                     firstDomains.append(str(link.absolute_url))
             firstDomains = list(set(firstDomains))
         except:
+            print(traceback.format_exc())
             pass
         color.log(logging.INFO, color.GREEN,
                   'Number of links to test are: ' + str(len(firstDomains)))
